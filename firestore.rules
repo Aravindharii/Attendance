@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isCompanyAdmin(companyId) {
+      // Check if the user is an admin in the company's admins collection
+      // OR check custom claims if we had them. 
+      // For now, we rely on reading the admin document.
+      return exists(/databases/$(database)/documents/companies/$(companyId)/admins/$(request.auth.uid));
+    }
+    
+    function isEmployee(companyId) {
+       return exists(/databases/$(database)/documents/companies/$(companyId)/employees/$(request.auth.uid));
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Global User Mappings (Readable by auth user to find their company)
+    match /user_mappings/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId); // Initial creation
+    }
+
+    // Companies Collection
+    match /companies/{companyId} {
+      allow read: if isAuthenticated(); // Need to read basic company info
+      allow create: if isAuthenticated(); // User creating a company
+
+      // Company Profile
+      match /profile/{document=**} {
+        allow read: if isAuthenticated();
+        allow write: if isCompanyAdmin(companyId);
+      }
+
+      // Admins
+      match /admins/{adminId} {
+        allow read: if isCompanyAdmin(companyId) || isOwner(adminId);
+        allow write: if isCompanyAdmin(companyId); // Only admins can add admins
+      }
+
+      // Employees
+      match /employees/{employeeId} {
+        allow read: if isCompanyAdmin(companyId) || (isEmployee(companyId) && isOwner(employeeId));
+        allow write: if isCompanyAdmin(companyId);
+        // Employees can update their own profile? Maybe not.
+      }
+
+      // Attendance
+      match /attendance/{recordId} {
+        // Admins can read all, Employees can read their own
+        allow read: if isCompanyAdmin(companyId) || 
+                   (isEmployee(companyId) && resource.data.employeeId == request.auth.uid);
+        
+        // Employees can create/update their own attendance
+        allow create: if isEmployee(companyId) && request.resource.data.employeeId == request.auth.uid;
+        allow update: if isEmployee(companyId) && resource.data.employeeId == request.auth.uid;
+        
+        // Admins can manage attendance
+        allow write: if isCompanyAdmin(companyId);
+      }
+
+      // Shifts & Holidays
+      match /shifts/{shiftId} {
+        allow read: if isAuthenticated();
+        allow write: if isCompanyAdmin(companyId);
+      }
+      
+      match /holidays/{holidayId} {
+        allow read: if isAuthenticated();
+        allow write: if isCompanyAdmin(companyId);
+      }
+      
+      // Reports
+      match /reports/{reportId} {
+        allow read: if isCompanyAdmin(companyId);
+        allow write: if false; // Only Cloud Functions
+      }
+    }
+  }
+}

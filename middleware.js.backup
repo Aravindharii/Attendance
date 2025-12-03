@@ -1,0 +1,34 @@
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+    // Note: In a client-side Firebase Auth app, we can't fully validate the user session 
+    // in middleware without cookies. However, we can check for the presence of 
+    // specific paths and redirect if needed based on client-side logic (which this middleware can't see).
+    // BUT, we can protect routes that definitely require auth.
+
+    // For this implementation, we will rely heavily on the client-side AuthContext 
+    // to handle the actual auth check and redirect. 
+    // This middleware will serve as a first line of defense for obvious patterns.
+
+    const path = request.nextUrl.pathname;
+
+    // If trying to access dashboard without being logged in (handled by client, 
+    // but we can add a check if we had cookies). 
+    // Since we don't have cookies, we'll let the client handle the auth check.
+
+    // However, we can prevent logged-in users from visiting login/register pages?
+    // Again, without cookies, the server doesn't know.
+
+    // So for this specific stack (Next.js + Firebase Client SDK), 
+    // the middleware is less powerful. We will keep it simple.
+
+    return NextResponse.next()
+}
+
+export const config = {
+    matcher: [
+        '/dashboard/:path*',
+        '/login',
+        '/register-company',
+    ],
+}

@@ -1,0 +1,33 @@
+"use client";
+
+import { use } from "react";
+import { useAuth } from "@/lib/auth/AuthContext";
+
+export default function CompanyDashboardLayout({ children, params }) {
+    const { companyId } = use(params);
+    const { user, userData, loading } = useAuth();
+
+    console.log("Layout:", { companyId, loading, hasUser: !!user, hasData: !!userData });
+
+    if (loading) {
+        return (
+            <div style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+            }}>
+                <div style={{ color: "white" }}>Loading auth...</div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ minHeight: "100vh", padding: "20px" }}>
+            <div style={{ color: "white", marginBottom: "20px" }}>
+                Company: {companyId} | User: {userData?.email || "none"}
+            </div>
+            {children}
+        </div>
+    );
+}
